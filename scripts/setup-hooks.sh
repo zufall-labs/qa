@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-git config core.hooksPath .githooks
+git config core.hooksPath qa/hooks
 
-chmod +x .githooks/*
+chmod +x ../hooks/*
 
 echo "Git hooks installed successfully!"

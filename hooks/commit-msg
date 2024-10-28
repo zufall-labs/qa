@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+# .git/hooks/commit-msg
+
+# Config
+GITHUB_ORG=${GITHUB_ORG:-"your-org"}
+GITHUB_REPO=${GITHUB_REPO:-"your-repo"}
+GITHUB_TOKEN=${GITHUB_TOKEN:-""}
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+# Helper functions
+colored_echo() {
+    echo -e "${1}${2}${NC}"
+}
+
+fail() {
+    colored_echo $RED "$1"
+    exit 1
+}
+
+warn() {
+    colored_echo $YELLOW "Warning: $1"
+}
+
+# Read commit message
+msg_file="$1"
+if [[ ! -f "$msg_file" ]]; then
+    fail "Error: Commit message file not found"
+fi
+msg=$(cat "$msg_file")
+
+# Conventional Commit Regex Patterns
+type_regex="^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert|config|ux|ui|security|i18n|ops|dependencies|design)"
+scope_regex="(\\([a-zA-Z0-9-]+\\))?"
+breaking_change_regex="!?"
+colon_space_regex=": "
+description_regex=".{1,}"  # at least one character for the description
+
+# Combine to make full conventional commit regex pattern
+commit_regex="${type_regex}${scope_regex}${breaking_change_regex}${colon_space_regex}${description_regex}"
+
+# Footer patterns
+footer_regex="^(BREAKING[ -]CHANGE|[A-Za-z-]+): "
+breaking_change_footer_regex="^BREAKING[ -]CHANGE: "
+
+# Check commit message format
+if ! [[ $msg =~ $commit_regex ]]; then
+    fail "Invalid commit message format.\nExpected format: <type>(<scope>)!?: <description>\nExample: feat(auth): add OAuth support"
+fi
+
+# Validate issue references
+issue_regex="#([0-9]+)"
+if [[ $msg =~ $issue_regex ]]; then
+    issue_number=${BASH_REMATCH[1]}
+    
+    # Validate issue existence with GitHub API
+    api_url="https://api.github.com/repos/$GITHUB_ORG/$GITHUB_REPO/issues/$issue_number"
+    
+    # Prepare headers for API request
+    headers=()
+    if [[ -n "$GITHUB_TOKEN" ]]; then
+        headers+=(-H "Authorization: token $GITHUB_TOKEN")
+    fi
+    
+    # Make API request with error handling
+    response=$(curl -s -w "%{http_code}" "${headers[@]}" "$api_url")
+    http_code=${response: -3}
+    body=${response:0:-3}
+    
+    case $http_code in
+        200)
+            # Issue exists, continue
+            ;;
+        404)
+            fail "Issue #$issue_number not found in $GITHUB_ORG/$GITHUB_REPO"
+            ;;
+        403)
+            fail "API rate limit exceeded. Please set GITHUB_TOKEN"
+            ;;
+        *)
+            fail "GitHub API error (HTTP $http_code): $body"
+            ;;
+    esac
+fi
+
+# Validate footers
+if [[ $msg =~ $footer_regex ]]; then
+    # Split message into lines while preserving whitespace
+    while IFS= read -r line; do
+        # Skip empty lines and description
+        [[ -z "$line" ]] && continue
+        [[ $line =~ $commit_regex ]] && continue
+        
+        # Check if line is a valid footer
+        if [[ $line =~ $footer_regex ]]; then
+            # Special validation for BREAKING CHANGE footer
+            if [[ $line =~ $breaking_change_footer_regex ]]; then
+                if [[ ${#line} -lt 20 ]]; then
+                    fail "BREAKING CHANGE footer must include a description"
+                fi
+            fi
+        elif [[ $line =~ ^[[:space:]]*$ ]]; then
+            continue  # Skip blank lines
+        else
+            fail "Invalid footer format: '$line'\nFooters must be in the format: 'Type: Description'"
+        fi
+    done <<< "$msg"
+fi
+
+colored_echo $GREEN "✓ Commit message follows Conventional Commit spec"
+exit 0
