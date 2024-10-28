@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# .git/hooks/commit-msg
 
 # Config
 GITHUB_ORG=${GITHUB_ORG:-"your-org"}
@@ -38,7 +37,7 @@ type_regex="^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert|confi
 scope_regex="(\\([a-zA-Z0-9-]+\\))?"
 breaking_change_regex="!?"
 colon_space_regex=": "
-description_regex=".{1,}"  # at least one character for the description
+description_regex=".{1,}"
 
 # Combine to make full conventional commit regex pattern
 commit_regex="${type_regex}${scope_regex}${breaking_change_regex}${colon_space_regex}${description_regex}"
@@ -57,23 +56,19 @@ issue_regex="#([0-9]+)"
 if [[ $msg =~ $issue_regex ]]; then
     issue_number=${BASH_REMATCH[1]}
     
-    # Validate issue existence with GitHub API
     api_url="https://api.github.com/repos/$GITHUB_ORG/$GITHUB_REPO/issues/$issue_number"
     
-    # Prepare headers for API request
     headers=()
     if [[ -n "$GITHUB_TOKEN" ]]; then
         headers+=(-H "Authorization: token $GITHUB_TOKEN")
     fi
     
-    # Make API request with error handling
     response=$(curl -s -w "%{http_code}" "${headers[@]}" "$api_url")
     http_code=${response: -3}
     body=${response:0:-3}
     
     case $http_code in
         200)
-            # Issue exists, continue
             ;;
         404)
             fail "Issue #$issue_number not found in $GITHUB_ORG/$GITHUB_REPO"
