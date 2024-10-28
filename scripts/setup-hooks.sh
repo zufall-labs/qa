@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 git config core.hooksPath qa/hooks
+git config core.fileMode false
 
 chmod +x ./qa/hooks/*
 
