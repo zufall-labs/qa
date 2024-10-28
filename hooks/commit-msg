@@ -1,7 +1,15 @@
 #!/usr/bin/env bash
 
-# Config
-GITHUB_ORG=${GITHUB_ORG:-"your-org"}
+# Load config from .zflbs file
+if [ -f "$(git rev-parse --show-toplevel)/.zflbs" ]; then
+    source "$(git rev-parse --show-toplevel)/.zflbs"
+else
+    echo "Error: Configuration file .zflbs not found"
+    exit 1
+fi
+
+# Set defaults if not found in config
+GITHUB_ORG=${GITHUB_ORG:-"zufall-labs"}
 GITHUB_REPO=${GITHUB_REPO:-"your-repo"}
 GITHUB_TOKEN=${GITHUB_TOKEN:-""}
 
