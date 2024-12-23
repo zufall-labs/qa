@@ -1,93 +1,53 @@
 #!/usr/bin/env bash
+#
+# commit-msg
+#
+# Description:
+# This script validates the commit message format according to the Conventional Commit spec.
+# It checks if the commit message file exists, validates the message format, checks if the referenced
+# issue exists on GitHub, and validates any footers.
+#
+# Usage:
+# This file shouldn't be used directly. Is is used automatically by git, if set up correctly (this is done by the 'setup-hooks' script).
+#
+# Requirements:
+#   - Git must be installed
+#   - The repository must be configured with a '.zflbs' file containing configuration values for GitHub.
+#   - The commit message should follow the Conventional Commit spec.
+#
 
-# Load config from .zflbs file
-if [ -f "$(git rev-parse --show-toplevel)/.zflbs" ]; then
-    source "$(git rev-parse --show-toplevel)/.zflbs"
-else
-    echo "Error: Configuration file .zflbs not found"
-    exit 1
-fi
+# Get the root directory of the Git repository
+REPO_ROOT=$(git rev-parse --show-toplevel)
+readonly REPO_ROOT
 
-# Set defaults if not found in config
-GITHUB_ORG=${GITHUB_ORG:-"zufall-labs"}
-GITHUB_REPO=${GITHUB_REPO:-"your-repo"}
-GITHUB_TOKEN=${GITHUB_TOKEN:-""}
+# Load util scripts from the utils/ directory
+source "$REPO_ROOT/utils/logging"
+source "$REPO_ROOT/utils/commit-validation"
+source "$REPO_ROOT/utils/load-zflbs-config"
 
-# Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
+# Load config from '.zflbs' file
+load_zflbs_config "$REPO_ROOT"
 
-# Helper functions
-colored_echo() {
-    echo -e "${1}${2}${NC}"
-}
+# Set default GitHub values if not found in config
+readonly GITHUB_ORG=${GITHUB_ORG:-"zufall-labs"}
+readonly GITHUB_REPO=${GITHUB_REPO:-"your-repo"}
+readonly GITHUB_TOKEN=${GITHUB_TOKEN:-""}
 
-fail() {
-    colored_echo $RED "$1"
-    exit 1
-}
-
-warn() {
-    colored_echo $YELLOW "Warning: $1"
-}
-
-# Read commit message
+# Read commit message from the file passed as argument
 msg_file="$1"
 if [[ ! -f "$msg_file" ]]; then
     fail "Error: Commit message file not found"
 fi
 msg=$(cat "$msg_file")
 
-# Conventional Commit Regex Patterns
-type_regex="^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert|config|ux|ui|security|i18n|ops|dependencies|design)"
-scope_regex="(\\([a-zA-Z0-9-]+\\))?"
-breaking_change_regex="!?"
-colon_space_regex=": "
-description_regex=".{1,}"
-
-# Combine to make full conventional commit regex pattern
-commit_regex="${type_regex}${scope_regex}${breaking_change_regex}${colon_space_regex}${description_regex}"
-
-# Footer patterns
-footer_regex="^(BREAKING[ -]CHANGE|[A-Za-z-]+): "
-breaking_change_footer_regex="^BREAKING[ -]CHANGE: "
-
-# Check commit message format
-if ! [[ $msg =~ $commit_regex ]]; then
-    fail "Invalid commit message format.\nExpected format: <type>(<scope>)!?: <description>\nExample: feat(auth): add OAuth support"
-fi
+# Validate commit message format
+validate_commit_message "$msg"
 
 # Validate issue references
 issue_regex="#([0-9]+)"
 if [[ $msg =~ $issue_regex ]]; then
     issue_number=${BASH_REMATCH[1]}
-    
-    api_url="https://api.github.com/repos/$GITHUB_ORG/$GITHUB_REPO/issues/$issue_number"
-    
-    headers=()
-    if [[ -n "$GITHUB_TOKEN" ]]; then
-        headers+=(-H "Authorization: token $GITHUB_TOKEN")
-    fi
-    
-    response=$(curl -s -w "%{http_code}" "${headers[@]}" "$api_url")
-    http_code=${response: -3}
-    body=${response:0:-3}
-    
-    case $http_code in
-        200)
-            ;;
-        404)
-            fail "Issue #$issue_number not found in $GITHUB_ORG/$GITHUB_REPO"
-            ;;
-        403)
-            fail "API rate limit exceeded. Please set GITHUB_TOKEN"
-            ;;
-        *)
-            fail "GitHub API error (HTTP $http_code): $body"
-            ;;
-    esac
+    validate_issue_exists "$GITHUB_ORG" "$GITHUB_REPO" "$issue_number" "$issue_regex"
 fi
 
 # Validate footers
@@ -97,22 +57,9 @@ if [[ $msg =~ $footer_regex ]]; then
         # Skip empty lines and description
         [[ -z "$line" ]] && continue
         [[ $line =~ $commit_regex ]] && continue
-        
-        # Check if line is a valid footer
-        if [[ $line =~ $footer_regex ]]; then
-            # Special validation for BREAKING CHANGE footer
-            if [[ $line =~ $breaking_change_footer_regex ]]; then
-                if [[ ${#line} -lt 20 ]]; then
-                    fail "BREAKING CHANGE footer must include a description"
-                fi
-            fi
-        elif [[ $line =~ ^[[:space:]]*$ ]]; then
-            continue  # Skip blank lines
-        else
-            fail "Invalid footer format: '$line'\nFooters must be in the format: 'Type: Description'"
-        fi
-    done <<< "$msg"
+        validate_footer "$line"
+    done <<<"$msg"
 fi
 
-colored_echo $GREEN "✓ Commit message follows Conventional Commit spec"
+success "✓ Commit message follows Conventional Commit spec"
 exit 0

@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+#
+# load-zflbs-config
+#
+# Description:
+# This script contains a function to load configuration values from a '.zflbs' file located at the root of the repository.
+# If the file exists, it is sourced to set configuration variables. If the file does not exist, default values are used.
+#
+# Usage:
+# Source this script in other Bash scripts to use its functions.
+#
+# Author: Your Name
+# Date: YYYY-MM-DD
+#
+
+##########################################
+# Load configuration from the '.zflbs' file
+#
+# DESCRIPTION:
+# This function checks for the presence of the '.zflbs' file in the root directory of the repository.
+# If found, it loads the configuration from the file by sourcing it. If the file is missing,
+# it issues a warning and defaults will be used instead (the defaults are in the 'commit-msg' script).
+#
+# ARGUMENTS:
+#   repo_root - The root directory of the repository (where the '.zflbs' file should reside).
+#
+# OUTPUTS:
+#   Sourced configuration variables from the '.zflbs' file.
+#   If the file is missing, prints a warning to stdout.
+#
+# RETURNS:
+#   None. The function does not return a value.
+##########################################
+function load_zflbs_config() {
+    local repo_root="$1"
+    if [ -f "$repo_root/.zflbs" ]; then
+        source "$repo_root/.zflbs"
+    else
+        warn "Configuration file .zflbs not found. Using default values instead."
+    fi
+}

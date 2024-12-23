@@ -1,0 +1,133 @@
+#!/usr/bin/env bash
+#
+# logging
+#
+# Description:
+# This script provides utility functions for logging messages in different colors
+# to standard output (stdout) and standard error (stderr). It uses ANSI escape codes
+# by default, and will fall back to terminal-specific color codes if the 'tput' command
+# is available.
+#
+# Usage:
+# Source this script in other Bash scripts to use the logging functions.
+#
+
+# Color variables. Using ANSI by default.
+# These are used to format the output text with color.
+green="\033[1;32m"
+yellow="\033[1;33m"
+red="\033[1;31m"
+no_color="\033[0m"
+bold=""
+
+# Check if 'tput' is installed
+if ! command -v tput >/dev/null 2>&1; then
+    TPUT_INSTALLED=false
+else
+    TPUT_INSTALLED=true
+fi
+
+# If 'tput' is installed, override the default ANSI colors
+if [ "$TPUT_INSTALLED" = true ]; then
+    green=$(tput setaf 2)
+    yellow=$(tput setaf 3)
+    red=$(tput setaf 1)
+    no_color=$(tput sgr0)
+    bold=$(tput bold)
+fi
+
+# Check if stdout is a terminal
+if [ -t 1 ]; then
+    USE_COLOR=true
+else
+    USE_COLOR=false
+fi
+
+##########################################
+# Helper method for echoing
+#
+# DESCRIPTION:
+# __colored_echo prints a message in a specified color and style if the terminal supports it.
+# It checks the 'USE_COLOR' variable to decide whether to output colored text.
+#
+# ARGUMENTS:
+#   bold   - Whether the text should be printed in bold style
+#   color  - The color code for the message
+#   message - The actual message to print
+#
+# OUTPUTS:
+#   The message printed to the terminal, either in color or plain.
+#
+# RETURNS:
+#   None.
+##########################################
+function __colored_echo() {
+    local bold="$1"
+    local color="$2"
+    local message="$3"
+    if [ "$USE_COLOR" = true ]; then
+        # '-e' enables escape sequences
+        echo -e "${bold}${color}${message}${no_color}"
+    else
+        echo "$2"
+    fi
+}
+
+##########################################
+# Prints green text for success messages
+#
+# DESCRIPTION:
+# This function uses __colored_echo to print a success message in green.
+#
+# ARGUMENTS:
+#   message - The success message to print
+#
+# OUTPUTS:
+#   The success message printed in green.
+#
+# RETURNS:
+#   None.
+##########################################
+function success() {
+    __colored_echo "$bold" "$green" "$1"
+}
+
+##########################################
+# Prints yellow text for warning messages
+#
+# DESCRIPTION:
+# This function uses __colored_echo to print a warning message in yellow.
+#
+# ARGUMENTS:
+#   message - The warning message to print
+#
+# OUTPUTS:
+#   The warning message printed in yellow.
+#
+# RETURNS:
+#   None.
+##########################################
+function warn() {
+    __colored_echo "$bold" "$yellow" "$1"
+}
+
+##########################################
+# Prints red text for error messages and aborts the script
+#
+# DESCRIPTION:
+# This function uses __colored_echo to print an error message in red and then exits the script with a failure status.
+# The error message is passed to stderr.
+#
+# ARGUMENTS:
+#   message - The error message to print
+#
+# OUTPUTS:
+#   The error message printed in red.
+#
+# RETURNS:
+#   Exits the script with status code 1 (failure).
+##########################################
+function fail() {
+    __colored_echo "$bold" "$red" "$1" >&2
+    exit 1
+}
