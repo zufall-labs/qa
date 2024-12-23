@@ -14,7 +14,7 @@ The key files in this repository are located under the `hooks/` directory.
 Each script has a special name that Git knows.
 A full list of them can be found there [Git Hook](https://git-scm.com/book/ms/v2/Customizing-Git-Git-Hooks).
 
-The [setup-hooks.sh](scripts/setup-hooks.sh) script configures Git to use the hooks from this directory,
+The [setup-hooks.sh](scripts/setup-hooks) script configures Git to use the hooks from this directory,
 ensuring that any action made within the repository is checked according to the rules.
 The script also configures Git to look for hooks in the `qa/hooks/` directory instead of the default `.git/hooks/`.
 The scripts are also made executable, so that Git can actually work with them.
@@ -30,7 +30,7 @@ automatically be used by Git during the corresponding Git action.
 
 This setup results in roughly this architecture:
 
-- The [setup-hooks.sh](scripts/setup-hooks.sh) script configures Git and the hooks
+- The [setup-hooks.sh](scripts/setup-hooks) script configures Git and the hooks
 - The `hooks/` directory contains scripts that Git automatically executes, depending on the performed action, and the
   name of the script
 - Each script in the `hooks/` directory contains logic specific to the action the file name correlates to
