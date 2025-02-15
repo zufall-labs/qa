@@ -58,7 +58,7 @@ echo "Checking if the git hooks are already configured"
 current_hooks_path=$(git config --get-all core.hooksPath 2>/dev/null || echo "")
 if [ "$current_hooks_path" == "$qa_config_dir" ]; then
     success "Git hooks are already configured to use the $qa_config_dir directory."
-    exit 1
+    exit 0
 else
     echo "Configuring Git to use hooks from '$qa_config_dir' directory..."
     if [ ! -d "./$qa_config_dir" ]; then
