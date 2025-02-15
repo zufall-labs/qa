@@ -20,10 +20,18 @@
 REPO_ROOT=$(git rev-parse --show-toplevel)
 readonly REPO_ROOT
 
-# Load util scripts from the utils/ directory
-source "$REPO_ROOT/utils/logging"
-source "$REPO_ROOT/utils/commit-validation"
-source "$REPO_ROOT/utils/load-zflbs-config"
+if [[ "$REPO_ROOT" == *"/qa" ]]; then
+    # Script is being used directly in the 'qa' repository
+    UTIL_DIR="$REPO_ROOT"
+else
+    # Script is being used by being in a submodule, therefore append the submodule name 'qa'
+    UTIL_DIR="$REPO_ROOT/qa"
+fi
+
+# Load util scripts from the correct location based on where we're running
+source "$UTIL_DIR/utils/logging"
+source "$UTIL_DIR/utils/commit-validation"
+source "$UTIL_DIR/utils/load-zflbs-config"
 
 # Load config from '.zflbs' file
 load_zflbs_config "$REPO_ROOT"

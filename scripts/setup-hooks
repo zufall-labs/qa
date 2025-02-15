@@ -5,20 +5,20 @@
 # Description:
 # This script configures Git hooks for a repository. It checks if the repository is correctly set up,
 # ensures that hooks are executable, and configures Git to use hooks from a specified directory.
-# If the directory is not passed as an argument, it defaults to 'qa/hooks'.
+# The default directory for the git hooks is 'qa/hooks'.
 #
 # Usage:
-# ./setup-hooks [optional-config-directory]
+# ./setup-hooks [optional-config-type]
 #
 # Arguments:
-#   optional-config-directory  Path to the directory containing hook scripts (default is 'qa/hooks').
+#   optional-config-type  Type of the repository. This can either be 'submodule' (default) or 'repository'
 #
 # Requirements:
 #   - Git must be installed
 #   - The repository must be a Git repository
 #
 # Example:
-# ./setup-hooks hooks   # Uses 'hooks' as the hooks directory
+# ./setup-hooks repository   # Configures the script so it functions for the standalone 'qa' repository.
 #
 
 # Enable strict error handling:
@@ -27,21 +27,35 @@
 # - 'set -o pipefail' ensures that the script exits if any command in a pipeline fails, not just the last one.
 set -euo pipefail
 
-# Default config directory for git hooks (can be overridden by passing a directory as an argument)
-qa_config_dir="hooks"
-# If an argument is passed to the script, override the default 'qa/hooks' directory
+config_type="submodule"
+# Check if an argument is passed
 if [ $# -gt 0 ]; then
-    qa_config_dir="$1"
+    # Validate input argument
+    if [ "$1" == "repository" ]; then
+        config_type="repository"
+    elif [ "$1" != "submodule" ]; then
+        # Can't use the 'fail' function from 'utils/logging' as it hasn't been sourced yet
+        echo "Invalid input. Only 'submodule' (default) or 'repository' are allowed."
+        exit 1
+    fi
 fi
-# Remove any trailing slashes from the directory path to avoid inconsistency
-qa_config_dir="${qa_config_dir%/}"
+
+# Default config directory for git hooks
+qa_config_dir="qa/hooks"
+if [ "$config_type" == "repository" ]; then
+    qa_config_dir="hooks"
+fi
 
 echo "Starting the 'setup-hooks' script"
 
 # Get the root directory of the Git repository
 repo_root=$(git rev-parse --show-toplevel)
 # Load util scripts from the utils/ directory
-source "$repo_root/utils/logging"
+if [ "$config_type" == "repository" ]; then
+    source "$repo_root/utils/logging"
+else
+    source "$repo_root/qa/utils/logging"
+fi
 
 echo "Checking if 'git' is installed"
 if ! command -v git >/dev/null 2>&1; then
