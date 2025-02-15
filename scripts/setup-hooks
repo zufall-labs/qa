@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+#
+# setup-hooks
+#
+# Description:
+# This script configures Git hooks for a repository. It checks if the repository is correctly set up,
+# ensures that hooks are executable, and configures Git to use hooks from a specified directory.
+# If the directory is not passed as an argument, it defaults to 'qa/hooks'.
+#
+# Usage:
+# ./setup-hooks [optional-config-directory]
+#
+# Arguments:
+#   optional-config-directory  Path to the directory containing hook scripts (default is 'qa/hooks').
+#
+# Requirements:
+#   - Git must be installed
+#   - The repository must be a Git repository
+#
+# Example:
+# ./setup-hooks hooks   # Uses 'hooks' as the hooks directory
+#
+
+# Enable strict error handling:
+# - 'set -e' causes the script to exit immediately if any command fails (non-zero exit status).
+# - 'set -u' causes the script to exit if any variable is used before being set.
+# - 'set -o pipefail' ensures that the script exits if any command in a pipeline fails, not just the last one.
+set -euo pipefail
+
+# Default config directory for git hooks (can be overridden by passing a directory as an argument)
+qa_config_dir="qa/hooks"
+# If an argument is passed to the script, override the default 'qa/hooks' directory
+if [ $# -gt 0 ]; then
+    qa_config_dir="$1"
+fi
+# Remove any trailing slashes from the directory path to avoid inconsistency
+qa_config_dir="${qa_config_dir%/}"
+
+echo "Starting the 'setup-hooks' script"
+
+# Get the root directory of the Git repository
+repo_root=$(git rev-parse --show-toplevel)
+# Load util scripts from the utils/ directory
+source "$repo_root/utils/logging"
+
+echo "Checking if 'git' is installed"
+if ! command -v git >/dev/null 2>&1; then
+    fail "Git is required, but it's not installed."
+fi
+
+echo "Checking if the current directory is a git repository"
+if ! git rev-parse --git-dir >/dev/null 2>&1; then
+    fail "Not in a git repository"
+fi
+
+echo "Checking if the git hooks are already configured"
+# Try to get the current hooks path; The command returns an error if it is not set, therefore the redirect and the empty string.
+current_hooks_path=$(git config --get-all core.hooksPath 2>/dev/null || echo "")
+if [ "$current_hooks_path" == "$qa_config_dir" ]; then
+    success "Git hooks are already configured to use the $qa_config_dir directory."
+    exit 1
+else
+    echo "Configuring Git to use hooks from '$qa_config_dir' directory..."
+    if [ ! -d "./$qa_config_dir" ]; then
+        fail "$qa_config_dir directory does not exist. Please check your repository setup."
+    fi
+    git config core.hooksPath "$qa_config_dir"
+    echo "Git hooks path successfully configured."
+fi
+
+echo "Configuring Git to ignore changes to file permissions"
+git config core.fileMode false
+if [ -d "qa/.git" ] || [ -f "qa/.git" ]; then # handles both regular and submodule .git
+    echo "Configuring Git in the 'qa' submodule to ignore changes to file permissions"
+    (cd qa && git config core.fileMode false)
+fi
+
+echo "Ensuring that hook scripts are executable..."
+chmod +x ./"$qa_config_dir"/* || {
+    fail "Failed to set executable permissions for hook scripts."
+}
+echo "Hook scripts are now executable."
+
+success "✓ Git hooks installed successfully!"

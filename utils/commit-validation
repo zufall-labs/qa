@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+#
+# commit-validation
+#
+# Description:
+# This script contains functions to validate commit messages according to the Conventional Commit spec.
+# It uses regular expressions to validate the structure of the commit message and any footers.
+#
+# Usage:
+# Source this script in other Bash scripts to use its functions.
+#
+
+# Conventional Commit Regex Patterns
+readonly TYPE_REGEX="^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert|config|ux|ui|security|i18n|ops|dependencies|design)"
+readonly SCOPE_REGEX="(\\([a-zA-Z0-9-]+\\))?"
+readonly BREAKING_CHANGE_REGEX="!?"
+readonly COLON_SPACE_REGEX=": "
+readonly DESCRIPTION_REGEX=".{1,}"
+
+# Combine to make full conventional commit regex pattern
+readonly COMMIT_REGEX="${TYPE_REGEX}${SCOPE_REGEX}${BREAKING_CHANGE_REGEX}${COLON_SPACE_REGEX}${DESCRIPTION_REGEX}"
+
+# Footer patterns
+readonly FOOTER_REGEX="^(BREAKING[ -]CHANGE|[A-Za-z-]+): "
+readonly BREAKING_CHANGE_FOOTER_REGEX="^BREAKING[ -]CHANGE: "
+
+##########################################
+# Validate commit message format
+#
+# DESCRIPTION:
+# This function validates the commit message to ensure it follows the Conventional Commit format.
+#
+# ARGUMENTS:
+#   msg - The commit message string to validate.
+#
+# RETURNS:
+#   Exits with a non-zero status if the message is invalid, otherwise returns successfully.
+##########################################
+function validate_commit_message() {
+    local msg="$1"
+    if ! [[ $msg =~ $COMMIT_REGEX ]]; then
+        fail "Invalid commit message format.\nExpected format: <type>(<scope>)!?: <description>\nExample: feat(auth): add OAuth support"
+    fi
+}
+
+##########################################
+# Validate commit message footer format
+#
+# DESCRIPTION:
+# This function validates the footer lines of a commit message.
+# It checks that footers are formatted correctly and ensures that the "BREAKING CHANGE" footer
+# includes a description if it's used.
+#
+# ARGUMENTS:
+#   footer - The footer string to validate.
+#
+# RETURNS:
+#   Exits with a non-zero status if the footer format is invalid, otherwise returns successfully.
+##########################################
+function validate_footer() {
+    local footer="$1"
+    # Check if line is a valid footer
+    if [[ $footer =~ $FOOTER_REGEX ]]; then
+        # Special validation for BREAKING CHANGE footer
+        if [[ $footer =~ $BREAKING_CHANGE_FOOTER_REGEX && ${#footer} -lt 20 ]]; then
+            fail "BREAKING CHANGE footer must include a description"
+        fi
+    # Skip blank lines
+    elif [[ $footer =~ ^[[:space:]]*$ ]]; then
+        return
+    else
+        fail "Invalid footer format: '$footer'\nFooters must be in the format: 'Type: Description'"
+    fi
+}

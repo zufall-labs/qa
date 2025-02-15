@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+#
+# github-api
+#
+# Description:
+# This script contains a function to validate the existence of an issue on GitHub via its API.
+#
+# Usage:
+# Source this script in other Bash scripts to use its functions.
+#
+
+##########################################
+# Validate if an issue exists on GitHub
+#
+# DESCRIPTION:
+# This function makes an API call to GitHub to check if a specific issue exists in the repository.
+# It handles HTTP responses to determine whether the issue was found, the API rate limit was exceeded,
+# or an error occurred.
+#
+# ARGUMENTS:
+#   org          - GitHub organization name.
+#   repo         - GitHub repository name.
+#   issue_number - The number of the issue to check.
+#   token        - GitHub API token for authorization (optional).
+#
+# OUTPUTS:
+#   Prints a message to stdout if the issue is found.
+#   Exits with an error code if the issue is not found, the rate limit is exceeded, or an error occurs.
+#
+# RETURNS:
+#   Exits with a non-zero status if the issue was not found or if any other error occurs.
+##########################################
+function validate_issue_exists() {
+    local org="$1"
+    local repo="$2"
+    local issue_number="$3"
+    local token="$4"
+
+    api_url="https://api.github.com/repos/$org/$repo/issues/$issue_number"
+    headers=()
+    if [[ -n "$token" ]]; then
+        headers+=(-H "Authorization: token $token")
+    fi
+
+    response=$(curl -s -w "%{http_code}" "${headers[@]}" "$api_url")
+    http_code=${response: -3}
+    body=${response:0:-3}
+
+    case $http_code in
+    200) echo "Issue $issue_number" was found ;; # Issue found
+    404) fail "Issue #$issue_number not found in $org/$repo" ;;
+    403) fail "API rate limit exceeded. Please set GITHUB_TOKEN" ;;
+    *) fail "GitHub API error (HTTP $http_code): $body" ;;
+    esac
+}
