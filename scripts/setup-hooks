@@ -28,7 +28,7 @@
 set -euo pipefail
 
 # Default config directory for git hooks (can be overridden by passing a directory as an argument)
-qa_config_dir="qa/hooks"
+qa_config_dir="hooks"
 # If an argument is passed to the script, override the default 'qa/hooks' directory
 if [ $# -gt 0 ]; then
     qa_config_dir="$1"
