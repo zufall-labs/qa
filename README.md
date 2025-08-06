@@ -17,7 +17,7 @@ A full list of them can be found there [Git Hook](https://git-scm.com/book/ms/v2
 The [setup-hooks](scripts/setup-hooks) script configures Git to use the hooks from this directory,
 ensuring that any action made within the repository is checked according to the rules.
 The script also configures Git to look for hooks in the `qa/hooks/` directory instead of the default `.git/hooks/`.
-This depends on the value of the `qa_config_dir` variable at the start of the [setup-hooks](scripts/setup-hooks) script.
+This depends on the value of the `config_type` variable at the start of the [setup-hooks](scripts/setup-hooks) script.
 The scripts are also made executable, so that Git can actually work with them.
 Git triggers each hook automatically, depending on the performed action.
 
@@ -40,8 +40,25 @@ This setup results in roughly this architecture:
 
 ## Working with this repository
 
+### As a submodule
+
 As this repository is intended to be used as a submodule, it needs to be updated in all other repositories that use this
 repository.
+
+### Directly
+
+The first thing you need to do is create a `.zflsb` file, otherwise default values will be used.
+The `.zflbs` file should contain the following config:
+
+```
+GITHUB_ORG=<your-org-name>
+GITHUB_REPO=<your-repo-name>
+```
+
+After that you need to set the config variable `config_type` in the [setup-hooks](scripts/setup-hooks)
+script. The value has to be `repository`. This can be done when running the script, meaning you can use
+`./scripts/setup-hooks repository`, if you are running the script from the repository root, otherwise change the path
+accordingly.
 
 ## Contribution
 
